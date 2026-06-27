@@ -12,7 +12,7 @@ from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
 )
 from reportlab.lib.styles import ParagraphStyle
-from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT, TA_JUSTIFY
+from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
 from reportlab.pdfgen import canvas
 
 # ── Themes ────────────────────────────────────────────────────────────────────
@@ -44,7 +44,7 @@ def _style(name, font="Helvetica", size=10, color="#111111", leading=None, align
 
 # ── RESUME GENERATOR ─────────────────────────────────────────────────────────
 def generate_resume_pdf(data):
-    """Generate a professional resume with proper formatting."""
+    """Generate a professional resume."""
     buf = io.BytesIO()
     
     try:
@@ -61,7 +61,7 @@ def generate_resume_pdf(data):
         
         story = []
         
-        # ── Header ──
+        # Header
         name = data.get("name", "Your Name").strip() or "Your Name"
         title = data.get("title", "").strip()
         email = data.get("email", "").strip()
@@ -89,50 +89,20 @@ def generate_resume_pdf(data):
         story.append(hdr)
         story.append(Spacer(1, 6*mm))
         
-        # ── Summary ──
+        # Summary
         summary = data.get("summary", "").strip()
         if summary:
             story.append(Paragraph(summary, _style("Summary", size=9.5, color="#333333", leading=14, sa=8)))
             story.append(Spacer(1, 3*mm))
         
-        # ── Two Column Layout ──
-        left_w = 55 * mm
-        right_w = BODY_W - left_w - 8 * mm
-        
-        # Left Column Items
-        left_items = []
-        right_items = []
-        
         # Skills
         skills = [s.strip() for s in (data.get("skills") or []) if s and s.strip()]
         if skills:
-            left_items.append(("SEC", "SKILLS"))
+            story.append(Paragraph("SKILLS", _style("Sec", "Helvetica-Bold", 9, PRIMARY, 12, sb=6, sa=1)))
             for sk in skills:
-                left_items.append(("SKILL", sk.title()))
-                left_items.append(("SPACER", 2))
+                story.append(Paragraph(f"• {sk.title()}", _style("Body", size=9.5, color="#333333", leading=13)))
+            story.append(Spacer(1, 5*mm))
         
-        # Education
-        degree = (data.get("degree", "") or "").strip()
-        institution = (data.get("institution", "") or "").strip()
-        year = (data.get("year", "") or "").strip()
-        
-        if degree or institution or year:
-            left_items.append(("SPACER", 10))
-            left_items.append(("SEC", "EDUCATION"))
-            if degree:
-                left_items.append(("BOLD", degree))
-            inst_line = " · ".join(filter(None, [institution, year]))
-            if inst_line:
-                left_items.append(("MUTED", inst_line))
-        
-        # Languages
-        languages = (data.get("languages", "") or "").strip()
-        if languages:
-            left_items.append(("SPACER", 10))
-            left_items.append(("SEC", "LANGUAGES"))
-            left_items.append(("MUTED", languages))
-        
-        # Right Column Items
         # Experience
         role = (data.get("role", "") or "").strip()
         company = (data.get("company", "") or "").strip()
@@ -140,82 +110,46 @@ def generate_resume_pdf(data):
         exp_desc = (data.get("exp_desc", "") or "").strip()
         
         if role or company or duration or exp_desc:
-            right_items.append(("SEC", "EXPERIENCE"))
+            story.append(Paragraph("EXPERIENCE", _style("Sec", "Helvetica-Bold", 9, PRIMARY, 12, sb=6, sa=1)))
             if role:
-                right_items.append(("BOLD", role))
+                story.append(Paragraph(role, _style("Bold", "Helvetica-Bold", 10, "#0f0f0f", 13)))
             co_line = " · ".join(filter(None, [company, duration]))
             if co_line:
-                right_items.append(("MUTED", co_line))
+                story.append(Paragraph(co_line, _style("Muted", size=8.5, color="#666666", leading=11)))
             if exp_desc:
-                right_items.append(("SPACER", 3))
                 for line in exp_desc.split('\n'):
                     if line.strip():
-                        right_items.append(("BODY", line.strip()))
+                        story.append(Paragraph(f"• {line.strip()}", _style("Body", size=9.5, color="#333333", leading=13)))
+            story.append(Spacer(1, 5*mm))
+        
+        # Education
+        degree = (data.get("degree", "") or "").strip()
+        institution = (data.get("institution", "") or "").strip()
+        year = (data.get("year", "") or "").strip()
+        
+        if degree or institution or year:
+            story.append(Paragraph("EDUCATION", _style("Sec", "Helvetica-Bold", 9, PRIMARY, 12, sb=6, sa=1)))
+            if degree:
+                story.append(Paragraph(degree, _style("Bold", "Helvetica-Bold", 10, "#0f0f0f", 13)))
+            inst_line = " · ".join(filter(None, [institution, year]))
+            if inst_line:
+                story.append(Paragraph(inst_line, _style("Muted", size=8.5, color="#666666", leading=11)))
+            story.append(Spacer(1, 5*mm))
         
         # Projects
         projects = (data.get("projects", "") or "").strip()
         if projects:
-            right_items.append(("SPACER", 10))
-            right_items.append(("SEC", "PROJECTS"))
+            story.append(Paragraph("PROJECTS", _style("Sec", "Helvetica-Bold", 9, PRIMARY, 12, sb=6, sa=1)))
             for line in projects.split('\n'):
                 if line.strip():
-                    right_items.append(("BODY", line.strip()))
-        
-        # Build the two-column table
-        def to_flowable(kind, val, col_w):
-            if kind == "SPACER":
-                return Spacer(1, float(val))
-            elif kind == "SEC":
-                return Paragraph(val.upper(), _style("Sec", "Helvetica-Bold", 8.5, PRIMARY, 11, sb=4, sa=2))
-            elif kind == "BOLD":
-                return Paragraph(val, _style("Bold", "Helvetica-Bold", 10, "#0f0f0f", 13))
-            elif kind == "MUTED":
-                return Paragraph(val, _style("Muted", size=8.5, color="#666666", leading=11))
-            elif kind == "BODY":
-                return Paragraph(f"• {val}", _style("Body", size=9.5, color="#333333", leading=13))
-            elif kind == "SKILL":
-                # Skill pill
-                skill_style = _style("Skill", size=8.5, color=DARK, leading=11, align=TA_CENTER)
-                pill = Table([[Paragraph(val, skill_style)]], colWidths=[col_w - 12])
-                pill.setStyle(TableStyle([
-                    ("BACKGROUND", (0,0), (-1,-1), LIGHT),
-                    ("TOPPADDING", (0,0), (-1,-1), 4),
-                    ("BOTTOMPADDING", (0,0), (-1,-1), 4),
-                    ("LEFTPADDING", (0,0), (-1,-1), 8),
-                    ("RIGHTPADDING", (0,0), (-1,-1), 8),
-                ]))
-                return pill
-            return Spacer(1, 1)
-        
-        left_flows = [to_flowable(k, v, left_w) for k, v in left_items]
-        right_flows = [to_flowable(k, v, right_w) for k, v in right_items]
-        
-        # Pad to equal length
-        n = max(len(left_flows), len(right_flows), 1)
-        left_flows += [Spacer(1, 1)] * (n - len(left_flows))
-        right_flows += [Spacer(1, 1)] * (n - len(right_flows))
-        
-        rows = [[l, r] for l, r in zip(left_flows, right_flows)]
-        
-        body = Table(rows, colWidths=[left_w, right_w], hAlign="LEFT")
-        body.setStyle(TableStyle([
-            ("VALIGN", (0,0), (-1,-1), "TOP"),
-            ("TOPPADDING", (0,0), (-1,-1), 2),
-            ("BOTTOMPADDING", (0,0), (-1,-1), 2),
-            ("LEFTPADDING", (0,0), (-1,-1), 2),
-            ("RIGHTPADDING", (0,0), (-1,-1), 2),
-            ("LEFTPADDING", (1,0), (1,-1), 12),
-            ("LINEAFTER", (0,0), (0,-1), 0.5, _hex("#e0e0e0")),
-        ]))
-        story.append(body)
+                    story.append(Paragraph(f"• {line.strip()}", _style("Body", size=9.5, color="#333333", leading=13)))
         
         doc.build(story)
         
     except Exception as e:
-        # Return error information
         error_buf = io.BytesIO()
         c = canvas.Canvas(error_buf, pagesize=A4)
-        c.drawString(50, 750, f"Error generating PDF: {str(e)}")
+        c.drawString(50, 750, f"Error: {str(e)}")
         c.save()
         return error_buf.getvalue()
     
@@ -229,8 +163,6 @@ def generate_cv_pdf(data):
     try:
         theme = THEMES.get(data.get("theme", "Classic Green"), THEMES["Classic Green"])
         PRIMARY = _hex(theme["primary"])
-        LIGHT = _hex(theme["light"])
-        DARK = _hex(theme["dark"])
         
         doc = SimpleDocTemplate(
             buf, pagesize=A4,
@@ -240,7 +172,7 @@ def generate_cv_pdf(data):
         
         story = []
         
-        # ── Header ──
+        # Header
         name = data.get("name", "Your Name").strip() or "Your Name"
         title = data.get("title", "").strip()
         email = data.get("email", "").strip()
@@ -268,171 +200,76 @@ def generate_cv_pdf(data):
         story.append(hdr)
         story.append(Spacer(1, 6*mm))
         
-        # ── Summary ──
+        # Summary
         summary = data.get("summary", "").strip()
         if summary:
             story.append(Paragraph(summary, _style("Summary", size=9.5, color="#333333", leading=14, sa=8)))
             story.append(Spacer(1, 3*mm))
         
-        # ── Two Column Layout ──
-        left_w = 50 * mm
-        right_w = BODY_W - left_w - 8 * mm
-        
-        left_items = []
-        right_items = []
-        
-        # Left: Skills
+        # Skills
         skills = [s.strip() for s in (data.get("skills") or []) if s and s.strip()]
         if skills:
-            left_items.append(("SEC", "SKILLS"))
+            story.append(Paragraph("SKILLS", _style("Sec", "Helvetica-Bold", 9, PRIMARY, 12, sb=6, sa=1)))
             for sk in skills:
-                left_items.append(("SKILL", sk.title()))
-                left_items.append(("SPACER", 2))
+                story.append(Paragraph(f"• {sk.title()}", _style("Body", size=9.5, color="#333333", leading=13)))
+            story.append(Spacer(1, 5*mm))
         
-        # Left: Education
-        degree = (data.get("degree", "") or "").strip()
-        institution = (data.get("institution", "") or "").strip()
-        year = (data.get("year", "") or "").strip()
-        
-        if degree or institution or year:
-            left_items.append(("SPACER", 10))
-            left_items.append(("SEC", "EDUCATION"))
-            if degree:
-                left_items.append(("BOLD", degree))
-            inst_line = " · ".join(filter(None, [institution, year]))
-            if inst_line:
-                left_items.append(("MUTED", inst_line))
-        
-        # Left: Certifications
-        certs = (data.get("certifications", "") or "").strip()
-        if certs:
-            left_items.append(("SPACER", 10))
-            left_items.append(("SEC", "CERTIFICATIONS"))
-            for cert in certs.split('\n'):
-                if cert.strip():
-                    left_items.append(("MUTED", cert.strip()))
-        
-        # Left: Languages
-        languages = (data.get("languages", "") or "").strip()
-        if languages:
-            left_items.append(("SPACER", 10))
-            left_items.append(("SEC", "LANGUAGES"))
-            left_items.append(("MUTED", languages))
-        
-        # Right: Experience
+        # Experience
         role = (data.get("role", "") or "").strip()
         company = (data.get("company", "") or "").strip()
         duration = (data.get("duration", "") or "").strip()
         exp_desc = (data.get("exp_desc", "") or "").strip()
         
         if role or company or duration or exp_desc:
-            right_items.append(("SEC", "EXPERIENCE"))
+            story.append(Paragraph("EXPERIENCE", _style("Sec", "Helvetica-Bold", 9, PRIMARY, 12, sb=6, sa=1)))
             if role:
-                right_items.append(("BOLD", role))
+                story.append(Paragraph(role, _style("Bold", "Helvetica-Bold", 10, "#0f0f0f", 13)))
             co_line = " · ".join(filter(None, [company, duration]))
             if co_line:
-                right_items.append(("MUTED", co_line))
+                story.append(Paragraph(co_line, _style("Muted", size=8.5, color="#666666", leading=11)))
             if exp_desc:
-                right_items.append(("SPACER", 3))
                 for line in exp_desc.split('\n'):
                     if line.strip():
-                        right_items.append(("BODY", line.strip()))
+                        story.append(Paragraph(f"• {line.strip()}", _style("Body", size=9.5, color="#333333", leading=13)))
+            story.append(Spacer(1, 5*mm))
         
-        # Right: Publications
+        # Education
+        degree = (data.get("degree", "") or "").strip()
+        institution = (data.get("institution", "") or "").strip()
+        year = (data.get("year", "") or "").strip()
+        
+        if degree or institution or year:
+            story.append(Paragraph("EDUCATION", _style("Sec", "Helvetica-Bold", 9, PRIMARY, 12, sb=6, sa=1)))
+            if degree:
+                story.append(Paragraph(degree, _style("Bold", "Helvetica-Bold", 10, "#0f0f0f", 13)))
+            inst_line = " · ".join(filter(None, [institution, year]))
+            if inst_line:
+                story.append(Paragraph(inst_line, _style("Muted", size=8.5, color="#666666", leading=11)))
+            story.append(Spacer(1, 5*mm))
+        
+        # Publications
         publications = (data.get("publications", "") or "").strip()
         if publications:
-            right_items.append(("SPACER", 10))
-            right_items.append(("SEC", "PUBLICATIONS"))
+            story.append(Paragraph("PUBLICATIONS", _style("Sec", "Helvetica-Bold", 9, PRIMARY, 12, sb=6, sa=1)))
             for pub in publications.split('\n'):
                 if pub.strip():
-                    right_items.append(("BODY", pub.strip()))
+                    story.append(Paragraph(f"• {pub.strip()}", _style("Body", size=9.5, color="#333333", leading=13)))
+            story.append(Spacer(1, 5*mm))
         
-        # Right: Research
-        research = (data.get("research", "") or "").strip()
-        if research:
-            right_items.append(("SPACER", 8))
-            right_items.append(("SEC", "RESEARCH"))
-            for line in research.split('\n'):
-                if line.strip():
-                    right_items.append(("BODY", line.strip()))
-        
-        # Right: Teaching
-        teaching = (data.get("teaching", "") or "").strip()
-        if teaching:
-            right_items.append(("SPACER", 8))
-            right_items.append(("SEC", "TEACHING"))
-            for line in teaching.split('\n'):
-                if line.strip():
-                    right_items.append(("BODY", line.strip()))
-        
-        # Right: Projects
+        # Projects
         projects = (data.get("projects", "") or "").strip()
         if projects:
-            right_items.append(("SPACER", 8))
-            right_items.append(("SEC", "PROJECTS"))
+            story.append(Paragraph("PROJECTS", _style("Sec", "Helvetica-Bold", 9, PRIMARY, 12, sb=6, sa=1)))
             for line in projects.split('\n'):
                 if line.strip():
-                    right_items.append(("BODY", line.strip()))
-        
-        # Right: Affiliations
-        affiliations = (data.get("affiliations", "") or "").strip()
-        if affiliations:
-            right_items.append(("SPACER", 8))
-            right_items.append(("SEC", "AFFILIATIONS"))
-            right_items.append(("MUTED", affiliations))
-        
-        # Build the two-column table
-        def to_flowable(kind, val, col_w):
-            if kind == "SPACER":
-                return Spacer(1, float(val))
-            elif kind == "SEC":
-                return Paragraph(val.upper(), _style("Sec", "Helvetica-Bold", 8.5, PRIMARY, 11, sb=4, sa=2))
-            elif kind == "BOLD":
-                return Paragraph(val, _style("Bold", "Helvetica-Bold", 10, "#0f0f0f", 13))
-            elif kind == "MUTED":
-                return Paragraph(val, _style("Muted", size=8.5, color="#666666", leading=11))
-            elif kind == "BODY":
-                return Paragraph(f"• {val}", _style("Body", size=9.5, color="#333333", leading=13))
-            elif kind == "SKILL":
-                skill_style = _style("Skill", size=8.5, color=DARK, leading=11, align=TA_CENTER)
-                pill = Table([[Paragraph(val, skill_style)]], colWidths=[col_w - 12])
-                pill.setStyle(TableStyle([
-                    ("BACKGROUND", (0,0), (-1,-1), LIGHT),
-                    ("TOPPADDING", (0,0), (-1,-1), 4),
-                    ("BOTTOMPADDING", (0,0), (-1,-1), 4),
-                    ("LEFTPADDING", (0,0), (-1,-1), 8),
-                    ("RIGHTPADDING", (0,0), (-1,-1), 8),
-                ]))
-                return pill
-            return Spacer(1, 1)
-        
-        left_flows = [to_flowable(k, v, left_w) for k, v in left_items]
-        right_flows = [to_flowable(k, v, right_w) for k, v in right_items]
-        
-        n = max(len(left_flows), len(right_flows), 1)
-        left_flows += [Spacer(1, 1)] * (n - len(left_flows))
-        right_flows += [Spacer(1, 1)] * (n - len(right_flows))
-        
-        rows = [[l, r] for l, r in zip(left_flows, right_flows)]
-        
-        body = Table(rows, colWidths=[left_w, right_w], hAlign="LEFT")
-        body.setStyle(TableStyle([
-            ("VALIGN", (0,0), (-1,-1), "TOP"),
-            ("TOPPADDING", (0,0), (-1,-1), 2),
-            ("BOTTOMPADDING", (0,0), (-1,-1), 2),
-            ("LEFTPADDING", (0,0), (-1,-1), 2),
-            ("RIGHTPADDING", (0,0), (-1,-1), 2),
-            ("LEFTPADDING", (1,0), (1,-1), 12),
-            ("LINEAFTER", (0,0), (0,-1), 0.5, _hex("#e0e0e0")),
-        ]))
-        story.append(body)
+                    story.append(Paragraph(f"• {line.strip()}", _style("Body", size=9.5, color="#333333", leading=13)))
         
         doc.build(story)
         
     except Exception as e:
         error_buf = io.BytesIO()
         c = canvas.Canvas(error_buf, pagesize=A4)
-        c.drawString(50, 750, f"Error generating CV: {str(e)}")
+        c.drawString(50, 750, f"Error: {str(e)}")
         c.save()
         return error_buf.getvalue()
     
@@ -471,12 +308,8 @@ def generate_cover_letter_pdf(data):
         story.append(Spacer(1, 8*mm))
         
         # Date
-        date_val = data.get("cover_date", datetime.now())
-        if isinstance(date_val, datetime):
-            date_str = date_val.strftime("%B %d, %Y")
-        else:
-            date_str = str(date_val)
-        story.append(Paragraph(date_str, _style("Date", size=9.5, color="#333333", align=TA_RIGHT, sa=6)))
+        story.append(Paragraph(datetime.now().strftime("%B %d, %Y"), 
+                              _style("Date", size=9.5, color="#333333", align=TA_RIGHT, sa=6)))
         story.append(Spacer(1, 3*mm))
         
         # Recipient
@@ -497,36 +330,22 @@ def generate_cover_letter_pdf(data):
         story.append(Paragraph(salutation, _style("Body", size=10, color="#333333", leading=16, sa=4)))
         
         # Opening
-        opening = data.get("cover_opening", "").strip()
+        opening = data.get("cover_custom", "").strip()
         if opening:
             story.append(Paragraph(opening, _style("Body", size=10, color="#333333", leading=16, sa=6)))
         else:
             opening_text = f"I am writing to express my strong interest in the {position} position at {company}. " \
-                          f"With my experience and skills, I am confident I would be a valuable addition to your team."
+                          f"With my experience in {', '.join(data.get('skills', ['my field']))}, " \
+                          f"I am confident I would be a valuable addition to your team."
             story.append(Paragraph(opening_text, _style("Body", size=10, color="#333333", leading=16, sa=6)))
         
-        # Body
-        body_text = data.get("cover_body", "").strip()
-        if body_text:
-            story.append(Paragraph(body_text, _style("Body", size=10, color="#333333", leading=16, sa=6)))
-        else:
-            skills_text = ", ".join(data.get("skills", ["my skills"]))
-            body_text = f"In my current role, I have developed strong expertise in {skills_text}. " \
-                       f"I am particularly drawn to this opportunity because of {company}'s reputation for excellence."
-            story.append(Paragraph(body_text, _style("Body", size=10, color="#333333", leading=16, sa=6)))
-        
         # Closing
-        closing = data.get("cover_closing", "").strip()
-        if closing:
-            story.append(Paragraph(closing, _style("Body", size=10, color="#333333", leading=16, sa=6)))
-        else:
-            closing_text = "I would welcome the opportunity to discuss how my experience can contribute to your success. " \
-                          "Thank you for your time and consideration."
-            story.append(Paragraph(closing_text, _style("Body", size=10, color="#333333", leading=16, sa=6)))
+        closing = "I would welcome the opportunity to discuss how my experience can contribute to your success. " \
+                  "Thank you for your time and consideration."
+        story.append(Paragraph(closing, _style("Body", size=10, color="#333333", leading=16, sa=6)))
         
-        story.append(Spacer(1, 5*mm))
-        story.append(Paragraph("Sincerely,", _style("Closing", size=10, color="#333333", leading=16, sa=4)))
         story.append(Spacer(1, 8*mm))
+        story.append(Paragraph("Sincerely,", _style("Closing", size=10, color="#333333", leading=16, sa=4)))
         story.append(Paragraph(name, _style("Name", "Helvetica-Bold", 11, DARK, 16)))
         
         doc.build(story)
@@ -534,7 +353,7 @@ def generate_cover_letter_pdf(data):
     except Exception as e:
         error_buf = io.BytesIO()
         c = canvas.Canvas(error_buf, pagesize=A4)
-        c.drawString(50, 750, f"Error generating Cover Letter: {str(e)}")
+        c.drawString(50, 750, f"Error: {str(e)}")
         c.save()
         return error_buf.getvalue()
     
@@ -548,7 +367,6 @@ def generate_proposal_pdf(data):
     try:
         theme = THEMES.get(data.get("theme", "Classic Green"), THEMES["Classic Green"])
         PRIMARY = _hex(theme["primary"])
-        DARK = _hex(theme["dark"])
         
         doc = SimpleDocTemplate(
             buf, pagesize=A4,
@@ -603,43 +421,20 @@ def generate_proposal_pdf(data):
                                           _style("Body", size=10, color="#333333", leading=16)))
             story.append(Spacer(1, 3*mm))
         
-        # Benefits
-        if data.get("proposal_benefits"):
-            story.append(Paragraph("<b>Value Proposition</b>", 
-                                  _style("Section", "Helvetica-Bold", 12, PRIMARY, 16, sb=6)))
-            for line in data["proposal_benefits"].split('\n'):
-                if line.strip():
-                    story.append(Paragraph(f"• {line.strip()}", 
-                                          _style("Body", size=10, color="#333333", leading=16)))
-            story.append(Spacer(1, 3*mm))
-        
         # About Us
         story.append(Paragraph("<b>About Us</b>", 
                               _style("Section", "Helvetica-Bold", 12, PRIMARY, 16, sb=6)))
         skills_text = ", ".join(data.get("skills", ["professional services"]))
         about_text = f"{name} brings extensive experience in the field, with expertise in {skills_text}. " \
-                     f"We are committed to delivering exceptional results that align with client objectives."
+                     f"We are committed to delivering exceptional results."
         story.append(Paragraph(about_text, _style("Body", size=10, color="#333333", leading=16, sa=6)))
-        story.append(Spacer(1, 3*mm))
-        
-        # Contact
-        story.append(Paragraph("<b>Contact Information</b>", 
-                              _style("Section", "Helvetica-Bold", 12, PRIMARY, 16, sb=6)))
-        contact_parts = []
-        if data.get("email"):
-            contact_parts.append(f"Email: {data['email']}")
-        if data.get("phone"):
-            contact_parts.append(f"Phone: {data['phone']}")
-        if data.get("location"):
-            contact_parts.append(f"Location: {data['location']}")
-        story.append(Paragraph(" | ".join(contact_parts), _style("Body", size=10, color="#333333", leading=16)))
         
         doc.build(story)
         
     except Exception as e:
         error_buf = io.BytesIO()
         c = canvas.Canvas(error_buf, pagesize=A4)
-        c.drawString(50, 750, f"Error generating Proposal: {str(e)}")
+        c.drawString(50, 750, f"Error: {str(e)}")
         c.save()
         return error_buf.getvalue()
     
@@ -647,7 +442,7 @@ def generate_proposal_pdf(data):
 
 # ── EXPERIENCE LETTER GENERATOR ─────────────────────────────────────────────
 def generate_experience_letter_pdf(data):
-    """Generate a professional experience/employment letter."""
+    """Generate a professional experience letter."""
     buf = io.BytesIO()
     
     try:
@@ -683,7 +478,6 @@ def generate_experience_letter_pdf(data):
         employee = data.get("exp_employee", "Employee Name")
         position = data.get("exp_position", "Position Held")
         period = data.get("exp_period", "Employment Period")
-        reason = data.get("exp_reason", "")
         
         story.append(Paragraph(f"This is to certify that <b>{employee}</b> was employed with us as <b>{position}</b> "
                               f"from <b>{period}</b>.",
@@ -696,13 +490,8 @@ def generate_experience_letter_pdf(data):
             story.append(Paragraph(data["exp_remarks"], 
                                   _style("Body", size=10, color="#333333", leading=17, sa=8)))
         
-        if reason:
-            story.append(Paragraph(f"<b>Reason for Leaving:</b> {reason}", 
-                                  _style("Body", size=10, color="#333333", leading=17, sa=8)))
-        
         # Closing
-        closing_text = f"We wish {employee} all the very best in future endeavors and confirm "
-        story.append(Paragraph(closing_text + "that the above information is true to the best of our knowledge.",
+        story.append(Paragraph(f"We wish {employee} all the very best in future endeavors.",
                               _style("Body", size=10, color="#333333", leading=17, sa=8)))
         
         story.append(Spacer(1, 12*mm))
@@ -718,7 +507,7 @@ def generate_experience_letter_pdf(data):
     except Exception as e:
         error_buf = io.BytesIO()
         c = canvas.Canvas(error_buf, pagesize=A4)
-        c.drawString(50, 750, f"Error generating Experience Letter: {str(e)}")
+        c.drawString(50, 750, f"Error: {str(e)}")
         c.save()
         return error_buf.getvalue()
     
