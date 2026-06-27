@@ -136,7 +136,7 @@ def generate_cover_letter_pdf(data: dict) -> bytes:
     location = data.get("location", "")
     
     # Sender info
-    story.append(Paragraph(name, _style("Name", "Helvetica-Bold", 16, DARK, 20)))
+    story.append(Paragraph(name, _style("Name", font="Helvetica-Bold", size=16, color=DARK, leading=20)))
     if title:
         story.append(Paragraph(title, _style("Title", size=10, color="#555555", leading=14)))
     story.append(Paragraph(f"{email} | {phone}" if email and phone else email or phone, 
@@ -153,7 +153,7 @@ def generate_cover_letter_pdf(data: dict) -> bytes:
     # Recipient
     company = data.get("cover_company", "Company Name")
     position = data.get("cover_position", "Position")
-    story.append(Paragraph(f"<b>{company}</b>", _style("Recipient", "Helvetica-Bold", 10, "#333333", leading=14)))
+    story.append(Paragraph(f"<b>{company}</b>", _style("Recipient", font="Helvetica-Bold", size=10, color="#333333", leading=14)))
     story.append(Paragraph(f"Re: Application for {position}", 
                           _style("Subject", size=10, color="#333333", leading=14, sa=6)))
     story.append(Spacer(1, 3*mm))
@@ -187,7 +187,7 @@ def generate_cover_letter_pdf(data: dict) -> bytes:
     story.append(Spacer(1, 5*mm))
     story.append(Paragraph("Sincerely,", _style("Closing", size=10, color="#333333", leading=16, sa=4)))
     story.append(Spacer(1, 8*mm))
-    story.append(Paragraph(name, _style("Name", "Helvetica-Bold", 11, DARK, 16)))
+    story.append(Paragraph(name, _style("Name", font="Helvetica-Bold", size=11, color=DARK, leading=16)))
     
     doc.build(story)
     return buf.getvalue()
@@ -209,32 +209,32 @@ def generate_proposal_pdf(data: dict) -> bytes:
     
     # Title
     story.append(Paragraph(data.get("proposal_title", "Project Proposal"), 
-                          _style("PropTitle", "Helvetica-Bold", 20, PRIMARY, 28, TA_CENTER)))
+                          _style("PropTitle", font="Helvetica-Bold", size=20, color=PRIMARY, leading=28, align=TA_CENTER)))
     story.append(Spacer(1, 3*mm))
     
     # Meta info
     story.append(Paragraph(f"Prepared for: <b>{data.get('proposal_client', 'Client')}</b>", 
-                          _style("Meta", size=10, color="#333333", leading=16, TA_CENTER)))
+                          _style("Meta", size=10, color="#333333", leading=16, align=TA_CENTER)))
     story.append(Paragraph(f"Prepared by: <b>{data.get('name', 'Your Name')}</b>", 
-                          _style("Meta", size=10, color="#333333", leading=16, TA_CENTER)))
+                          _style("Meta", size=10, color="#333333", leading=16, align=TA_CENTER)))
     story.append(Paragraph(f"Date: <b>{datetime.now().strftime('%B %d, %Y')}</b>", 
-                          _style("Meta", size=10, color="#333333", leading=16, TA_CENTER)))
+                          _style("Meta", size=10, color="#333333", leading=16, align=TA_CENTER)))
     if data.get("proposal_budget"):
         story.append(Paragraph(f"Budget: <b>{data['proposal_budget']}</b>", 
-                              _style("Meta", size=10, color="#333333", leading=16, TA_CENTER)))
+                              _style("Meta", size=10, color="#333333", leading=16, align=TA_CENTER)))
     if data.get("proposal_timeline"):
         story.append(Paragraph(f"Timeline: <b>{data['proposal_timeline']}</b>", 
-                              _style("Meta", size=10, color="#333333", leading=16, TA_CENTER)))
+                              _style("Meta", size=10, color="#333333", leading=16, align=TA_CENTER)))
     story.append(Spacer(1, 8*mm))
     
     # Separator
-    story.append(Paragraph("─" * 50, _style("Separator", size=8, color="#cccccc", leading=10, TA_CENTER)))
+    story.append(Paragraph("─" * 50, _style("Separator", size=8, color="#cccccc", leading=10, align=TA_CENTER)))
     story.append(Spacer(1, 6*mm))
     
     # Executive Summary
     if data.get("proposal_summary"):
         story.append(Paragraph("<b>Executive Summary</b>", 
-                              _style("Section", "Helvetica-Bold", 12, PRIMARY, 16, sb=6)))
+                              _style("Section", font="Helvetica-Bold", size=12, color=PRIMARY, leading=16, sb=6)))
         story.append(Paragraph(data["proposal_summary"], 
                               _style("Body", size=10, color="#333333", leading=16, sa=6)))
         story.append(Spacer(1, 3*mm))
@@ -242,7 +242,7 @@ def generate_proposal_pdf(data: dict) -> bytes:
     # Approach
     if data.get("proposal_approach"):
         story.append(Paragraph("<b>Approach & Methodology</b>", 
-                              _style("Section", "Helvetica-Bold", 12, PRIMARY, 16, sb=6)))
+                              _style("Section", font="Helvetica-Bold", size=12, color=PRIMARY, leading=16, sb=6)))
         for line in data["proposal_approach"].split('\n'):
             if line.strip():
                 story.append(Paragraph(f"• {line.strip()}", 
@@ -252,7 +252,7 @@ def generate_proposal_pdf(data: dict) -> bytes:
     # Benefits
     if data.get("proposal_benefits"):
         story.append(Paragraph("<b>Value Proposition</b>", 
-                              _style("Section", "Helvetica-Bold", 12, PRIMARY, 16, sb=6)))
+                              _style("Section", font="Helvetica-Bold", size=12, color=PRIMARY, leading=16, sb=6)))
         for line in data["proposal_benefits"].split('\n'):
             if line.strip():
                 story.append(Paragraph(f"• {line.strip()}", 
@@ -261,7 +261,7 @@ def generate_proposal_pdf(data: dict) -> bytes:
     
     # About Us
     story.append(Paragraph("<b>About Us</b>", 
-                          _style("Section", "Helvetica-Bold", 12, PRIMARY, 16, sb=6)))
+                          _style("Section", font="Helvetica-Bold", size=12, color=PRIMARY, leading=16, sb=6)))
     story.append(Paragraph(f"{data.get('name', 'Our team')} brings extensive experience in the field, "
                           f"with expertise in {', '.join(data.get('skills', ['professional services']))}. "
                           f"We are committed to delivering exceptional results that align with "
@@ -271,7 +271,7 @@ def generate_proposal_pdf(data: dict) -> bytes:
     
     # Contact
     story.append(Paragraph("<b>Contact Information</b>", 
-                          _style("Section", "Helvetica-Bold", 12, PRIMARY, 16, sb=6)))
+                          _style("Section", font="Helvetica-Bold", size=12, color=PRIMARY, leading=16, sb=6)))
     contact_info = f"Email: {data.get('email', '')}" if data.get('email') else ""
     if data.get('phone'):
         contact_info += f" | Phone: {data['phone']}"
@@ -299,18 +299,18 @@ def generate_experience_letter_pdf(data: dict) -> bytes:
     
     # Company Header
     company = data.get("exp_company", "Company Name")
-    story.append(Paragraph(company.upper(), _style("Company", "Helvetica-Bold", 18, PRIMARY, 24, TA_CENTER)))
-    story.append(Paragraph("─" * 50, _style("Separator", size=10, color="#cccccc", leading=12, TA_CENTER)))
+    story.append(Paragraph(company.upper(), _style("Company", font="Helvetica-Bold", size=18, color=PRIMARY, leading=24, align=TA_CENTER)))
+    story.append(Paragraph("─" * 50, _style("Separator", size=10, color="#cccccc", leading=12, align=TA_CENTER)))
     story.append(Spacer(1, 8*mm))
     
     # Date
     story.append(Paragraph(f"Date: {datetime.now().strftime('%B %d, %Y')}", 
-                          _style("Date", size=10, color="#333333", leading=14, TA_RIGHT, sa=6)))
+                          _style("Date", size=10, color="#333333", leading=14, align=TA_RIGHT, sa=6)))
     story.append(Spacer(1, 4*mm))
     
     # Subject
     story.append(Paragraph("<b>TO WHOM IT MAY CONCERN</b>", 
-                          _style("Subject", "Helvetica-Bold", 11, DARK, 16, TA_CENTER, sa=6)))
+                          _style("Subject", font="Helvetica-Bold", size=11, color=DARK, leading=16, align=TA_CENTER, sa=6)))
     story.append(Spacer(1, 6*mm))
     
     # Employee info
@@ -326,7 +326,7 @@ def generate_experience_letter_pdf(data: dict) -> bytes:
     # Remarks
     if data.get("exp_remarks"):
         story.append(Paragraph("<b>Performance & Conduct:</b>", 
-                              _style("Section", "Helvetica-Bold", 10.5, DARK, 16, sb=4)))
+                              _style("Section", font="Helvetica-Bold", size=10.5, color=DARK, leading=16, sb=4)))
         story.append(Paragraph(data["exp_remarks"], 
                               _style("Body", size=10, color="#333333", leading=17, sa=8)))
     
@@ -335,8 +335,8 @@ def generate_experience_letter_pdf(data: dict) -> bytes:
                               _style("Body", size=10, color="#333333", leading=17, sa=8)))
     
     # Closing
-    story.append(Paragraph("We wish {employee} all the very best in future endeavors and confirm "
-                          "that the above information is true to the best of our knowledge.",
+    closing_text = f"We wish {employee} all the very best in future endeavors and confirm "
+    story.append(Paragraph(closing_text + "that the above information is true to the best of our knowledge.",
                           _style("Body", size=10, color="#333333", leading=17, sa=8)))
     
     story.append(Spacer(1, 8*mm))
@@ -344,7 +344,7 @@ def generate_experience_letter_pdf(data: dict) -> bytes:
     # Issuer
     issuer = data.get("exp_issuer", "Issuer Name")
     issuer_title = data.get("exp_issuer_title", "Issuer Title")
-    story.append(Paragraph(f"<b>{issuer}</b>", _style("Issuer", "Helvetica-Bold", 11, DARK, 16)))
+    story.append(Paragraph(f"<b>{issuer}</b>", _style("Issuer", font="Helvetica-Bold", size=11, color=DARK, leading=16)))
     story.append(Paragraph(issuer_title, _style("IssuerTitle", size=10, color="#555555", leading=14)))
     
     doc.build(story)
@@ -363,7 +363,7 @@ def _create_header(data: dict, primary_color) -> list:
         data.get("linkedin", "").strip(),
     ]))
     
-    hdr_data = [[Paragraph(name, _style("Name", "Helvetica-Bold", 21, colors.white, 26))]]
+    hdr_data = [[Paragraph(name, _style("Name", font="Helvetica-Bold", size=21, color=colors.white, leading=26))]]
     if title:
         hdr_data.append([Paragraph(title, _style("Title", size=11, color=colors.white, leading=14))])
     if contact:
@@ -500,8 +500,8 @@ def _create_two_column_table(left_items: list, right_items: list, primary_color)
     # Style definitions for column items
     styles = {
         "SPACER": lambda v: Spacer(1, float(v)),
-        "SEC": lambda v: Paragraph(v.upper(), _style("Sec", "Helvetica-Bold", 9, primary_color, 12, sb=6, sa=1)),
-        "BOLD": lambda v: Paragraph(v, _style("Bold", "Helvetica-Bold", 10, "#0f0f0f", 13)),
+        "SEC": lambda v: Paragraph(v.upper(), _style("Sec", font="Helvetica-Bold", size=9, color=primary_color, leading=12, sb=6, sa=1)),
+        "BOLD": lambda v: Paragraph(v, _style("Bold", font="Helvetica-Bold", size=10, color="#0f0f0f", leading=13)),
         "MUTED": lambda v: Paragraph(v, _style("Muted", size=8.5, color="#555555", leading=11)),
         "BODY": lambda v: Paragraph(v, _style("Body", size=9.5, color="#222222", leading=13)),
         "SKILL": lambda v: _create_skill_pill(v, primary_color),
@@ -535,7 +535,7 @@ def _create_two_column_table(left_items: list, right_items: list, primary_color)
 
 def _create_skill_pill(text: str, primary_color) -> Table:
     """Create a skill badge/pill."""
-    pill = Table([[Paragraph(text, _style("Skill", size=8.5, color=primary_color, leading=11, TA_CENTER))]], 
+    pill = Table([[Paragraph(text, _style("Skill", size=8.5, color=primary_color, leading=11, align=TA_CENTER))]], 
                  colWidths=[58*mm - 16])
     pill.setStyle(TableStyle([
         ("BACKGROUND", (0,0), (-1,-1), _hex("#E1F5EE")),
