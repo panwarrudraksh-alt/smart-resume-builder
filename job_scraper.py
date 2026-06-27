@@ -22,13 +22,21 @@ SIMULATED_JOBS = [
      "skills": ["python", "machine learning", "tensorflow", "docker"], "loc": "Hyderabad", "type": "Full-time"},
     {"title": "Frontend Developer", "company": "Zepto", "emoji": "⚡",
      "skills": ["react", "javascript", "html", "css"], "loc": "Mumbai", "type": "Contract"},
+    {"title": "Full-Stack Developer", "company": "CRED", "emoji": "💳",
+     "skills": ["python", "react", "sql", "docker"], "loc": "Remote", "type": "Full-time"},
+    {"title": "DevOps Engineer", "company": "Groww", "emoji": "📈",
+     "skills": ["docker", "kubernetes", "aws", "python"], "loc": "Pune", "type": "Full-time"},
+    {"title": "Data Scientist", "company": "Meesho", "emoji": "🛍️",
+     "skills": ["python", "machine learning", "sql", "statistics"], "loc": "Remote", "type": "Full-time"},
+    {"title": "Cloud Engineer", "company": "PhonePe", "emoji": "📱",
+     "skills": ["aws", "docker", "kubernetes", "python"], "loc": "Bangalore", "type": "Full-time"},
 ]
 
 def scrape_remoteok(role):
     """Live scrape from RemoteOK."""
     try:
         url = "https://remoteok.com/api"
-        headers = {"User-Agent": "Mozilla/5.0"}
+        headers = {"User-Agent": "Mozilla/5.0 (compatible; ResumeForge/1.0)"}
         resp = requests.get(url, headers=headers, timeout=8)
         data = resp.json()
         
