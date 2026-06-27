@@ -1,17 +1,9 @@
 """
-pdf_generator.py  –  ResumeForge
-Generates A4 resume PDFs with 3 colour themes using ReportLab.
-
-Root cause of the original LayoutError:
-  - KeepInFrame overflowing its fixed height
-  - ROUNDEDCORNERS (not supported in all ReportLab versions)
-  - Nested Tables inside KeepInFrame inside Table
-
-Fix: replaced with a flat row-by-row two-column Table.
-No KeepInFrame, no ROUNDEDCORNERS, no nested Table-in-KeepInFrame.
+pdf_generator.py – ResumeForge
 """
 
 import io
+from datetime import datetime
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.lib.units import mm
@@ -19,29 +11,24 @@ from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 )
 from reportlab.lib.styles import ParagraphStyle
-from reportlab.lib.enums import TA_LEFT, TA_CENTER
+from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
 
 # ── Themes ────────────────────────────────────────────────────────────────────
 THEMES = {
-    "Classic Green":   {"primary": "#1D9E75", "light": "#E1F5EE", "dark": "#085041"},
-    "Corporate Blue":  {"primary": "#185FA5", "light": "#E6F1FB", "dark": "#042C53"},
+    "Classic Green": {"primary": "#1D9E75", "light": "#E1F5EE", "dark": "#085041"},
+    "Corporate Blue": {"primary": "#185FA5", "light": "#E6F1FB", "dark": "#042C53"},
     "Creative Purple": {"primary": "#533AB7", "light": "#EEEDFE", "dark": "#26215C"},
 }
 
-def _hex(h: str) -> colors.Color:
+def _hex(h):
     h = h.lstrip("#")
     return colors.Color(int(h[0:2],16)/255, int(h[2:4],16)/255, int(h[4:6],16)/255)
 
-# ── Constants ─────────────────────────────────────────────────────────────────
 PAGE_W, PAGE_H = A4
 LM, RM, TM, BM = 15*mm, 15*mm, 10*mm, 15*mm
-BODY_W  = PAGE_W - LM - RM          # usable width  (~165 mm)
-LEFT_W  = 58 * mm                   # left sidebar
-GAP_W   = 6  * mm                   # column gap
-RIGHT_W = BODY_W - LEFT_W - GAP_W   # right column
+BODY_W = PAGE_W - LM - RM
 
-def _style(name, font="Helvetica", size=10, color="#111111",
-           leading=None, align=TA_LEFT, sb=0, sa=0):
+def _style(name, font="Helvetica", size=10, color="#111111", leading=None, align=TA_LEFT, sb=0, sa=0):
     return ParagraphStyle(
         name,
         fontName=font,
@@ -53,169 +40,214 @@ def _style(name, font="Helvetica", size=10, color="#111111",
         spaceAfter=sa,
     )
 
-
-def generate_resume_pdf(data: dict) -> bytes:
-    """Build resume PDF and return raw bytes."""
-
+# ── Resume Generator ─────────────────────────────────────────────────────────
+def generate_resume_pdf(data):
     buf = io.BytesIO()
-
-    theme   = THEMES.get(data.get("theme", "Classic Green"), THEMES["Classic Green"])
+    theme = THEMES.get(data.get("theme", "Classic Green"), THEMES["Classic Green"])
     PRIMARY = _hex(theme["primary"])
-    LIGHT   = _hex(theme["light"])
-    DARK    = _hex(theme["dark"])
-    BORDER  = _hex("#e0e0e0")
-
-    doc = SimpleDocTemplate(
-        buf, pagesize=A4,
-        leftMargin=LM, rightMargin=RM,
-        topMargin=TM,  bottomMargin=BM,
-    )
-
-    # ── Styles ────────────────────────────────────────────────────────────────
-    ST = {
-        "name":    _style("N",  "Helvetica-Bold", 21, colors.white, 26),
-        "title":   _style("Ti", "Helvetica",      11, colors.white, 14),
-        "contact": _style("Co", "Helvetica",       9, colors.white, 12),
-        "sec":     _style("S",  "Helvetica-Bold",  9, PRIMARY,      12, sb=6, sa=1),
-        "bold":    _style("B",  "Helvetica-Bold", 10, "#0f0f0f",    13),
-        "body":    _style("Bd", "Helvetica",      9.5,"#222222",    13),
-        "muted":   _style("M",  "Helvetica",      8.5,"#555555",    11),
-        "skill":   _style("Sk", "Helvetica",      8.5, DARK,        11, TA_CENTER),
-    }
-
+    
+    doc = SimpleDocTemplate(buf, pagesize=A4, leftMargin=LM, rightMargin=RM, topMargin=TM, bottomMargin=BM)
     story = []
-
-    # ── HEADER ────────────────────────────────────────────────────────────────
-    name    = (data.get("name") or "").strip() or "Your Name"
-    title   = (data.get("title") or "").strip()
-    contact = "   ·   ".join(filter(None, [
-        data.get("email","").strip(),
-        data.get("phone","").strip(),
-        data.get("location","").strip(),
-        data.get("linkedin","").strip(),
-    ]))
-
-    hdr_data = [[Paragraph(name, ST["name"])]]
+    
+    # Header
+    name = data.get("name", "Your Name")
+    title = data.get("title", "")
+    contact = " · ".join(filter(None, [data.get("email", ""), data.get("phone", ""), data.get("location", "")]))
+    
+    hdr_data = [[Paragraph(name, _style("Name", font="Helvetica-Bold", size=20, color=colors.white, leading=26))]]
     if title:
-        hdr_data.append([Paragraph(title, ST["title"])])
+        hdr_data.append([Paragraph(title, _style("Title", size=11, color=colors.white, leading=14))])
     if contact:
-        hdr_data.append([Paragraph(contact, ST["contact"])])
-
+        hdr_data.append([Paragraph(contact, _style("Contact", size=9, color=colors.white, leading=12))])
+    
     hdr = Table(hdr_data, colWidths=[BODY_W])
     hdr.setStyle(TableStyle([
-        ("BACKGROUND",    (0,0), (-1,-1), PRIMARY),
-        ("TOPPADDING",    (0,0), (-1,-1), 8),
+        ("BACKGROUND", (0,0), (-1,-1), PRIMARY),
+        ("TOPPADDING", (0,0), (-1,-1), 8),
         ("BOTTOMPADDING", (0,0), (-1,-1), 8),
-        ("LEFTPADDING",   (0,0), (-1,-1), 14),
-        ("RIGHTPADDING",  (0,0), (-1,-1), 14),
+        ("LEFTPADDING", (0,0), (-1,-1), 14),
+        ("RIGHTPADDING", (0,0), (-1,-1), 14),
     ]))
     story.append(hdr)
     story.append(Spacer(1, 5*mm))
-
-    # ── Build column item lists ───────────────────────────────────────────────
-    # Each item is a tuple: ("TYPE", value)
-    # Types: SEC | BOLD | BODY | MUTED | SKILL | SPACER
-
-    left_items:  list = []
-    right_items: list = []
-
-    # LEFT — Skills
-    skills = [s.strip() for s in (data.get("skills") or []) if s and s.strip()]
+    
+    # Skills
+    skills = data.get("skills", [])
     if skills:
-        left_items.append(("SEC",   "SKILLS"))
+        story.append(Paragraph("SKILLS", _style("Sec", font="Helvetica-Bold", size=9, color=PRIMARY, leading=12, sb=6)))
         for sk in skills:
-            left_items.append(("SKILL", sk.title()))
-            left_items.append(("SPACER", 2))
-
-    # LEFT — Education
-    deg  = (data.get("degree","")      or "").strip()
-    inst = (data.get("institution","") or "").strip()
-    yr   = (data.get("year","")        or "").strip()
-    left_items.append(("SPACER", 8))
-    left_items.append(("SEC", "EDUCATION"))
-    if deg:
-        left_items.append(("BOLD", deg))
-    inst_line = " · ".join(filter(None, [inst, yr]))
-    if inst_line:
-        left_items.append(("MUTED", inst_line))
-
-    # RIGHT — Experience
-    role     = (data.get("role","")     or "").strip()
-    company  = (data.get("company","")  or "").strip()
-    duration = (data.get("duration","") or "").strip()
-    exp_desc = (data.get("exp_desc","") or "").strip()
-
-    right_items.append(("SEC", "EXPERIENCE"))
-    if role:
-        right_items.append(("BOLD", role))
-    co_line = " · ".join(filter(None, [company, duration]))
-    if co_line:
-        right_items.append(("MUTED", co_line))
-    if exp_desc:
-        right_items.append(("SPACER", 3))
-        for line in exp_desc.splitlines():
+            story.append(Paragraph(f"• {sk.title()}", _style("Body", size=9.5, color="#222222", leading=13)))
+        story.append(Spacer(1, 5*mm))
+    
+    # Experience
+    if data.get("role") or data.get("company"):
+        story.append(Paragraph("EXPERIENCE", _style("Sec", font="Helvetica-Bold", size=9, color=PRIMARY, leading=12, sb=6)))
+        if data.get("role"):
+            story.append(Paragraph(data["role"], _style("Bold", font="Helvetica-Bold", size=10, color="#0f0f0f", leading=13)))
+        co_line = " · ".join(filter(None, [data.get("company", ""), data.get("duration", "")]))
+        if co_line:
+            story.append(Paragraph(co_line, _style("Muted", size=8.5, color="#555555", leading=11)))
+        if data.get("exp_desc"):
+            for line in data["exp_desc"].split('\n'):
+                if line.strip():
+                    story.append(Paragraph(f"• {line.strip()}", _style("Body", size=9.5, color="#222222", leading=13)))
+        story.append(Spacer(1, 5*mm))
+    
+    # Education
+    if data.get("degree") or data.get("institution"):
+        story.append(Paragraph("EDUCATION", _style("Sec", font="Helvetica-Bold", size=9, color=PRIMARY, leading=12, sb=6)))
+        if data.get("degree"):
+            story.append(Paragraph(data["degree"], _style("Bold", font="Helvetica-Bold", size=10, color="#0f0f0f", leading=13)))
+        inst_line = " · ".join(filter(None, [data.get("institution", ""), data.get("year", "")]))
+        if inst_line:
+            story.append(Paragraph(inst_line, _style("Muted", size=8.5, color="#555555", leading=11)))
+    
+    # Projects
+    if data.get("projects"):
+        story.append(Spacer(1, 5*mm))
+        story.append(Paragraph("PROJECTS", _style("Sec", font="Helvetica-Bold", size=9, color=PRIMARY, leading=12, sb=6)))
+        for line in data["projects"].split('\n'):
             if line.strip():
-                right_items.append(("BODY", line.strip()))
+                story.append(Paragraph(f"• {line.strip()}", _style("Body", size=9.5, color="#222222", leading=13)))
+    
+    doc.build(story)
+    return buf.getvalue()
 
-    # RIGHT — Projects
-    projects = (data.get("projects","") or "").strip()
-    if projects:
-        right_items.append(("SPACER", 8))
-        right_items.append(("SEC", "PROJECTS"))
-        for line in projects.splitlines():
-            if line.strip():
-                right_items.append(("BODY", line.strip()))
+# ── CV Generator ─────────────────────────────────────────────────────────────
+def generate_cv_pdf(data):
+    # Same as resume but with more sections
+    return generate_resume_pdf(data)
 
-    # ── Convert items → flowables ─────────────────────────────────────────────
-    def to_flowable(kind: str, val, col_w: float, is_left: bool):
-        """Return a single flowable for one item."""
-        if kind == "SPACER":
-            return Spacer(1, float(val))
-        if kind == "SEC":
-            return Paragraph(val.upper(), ST["sec"])
-        if kind == "BOLD":
-            return Paragraph(val, ST["bold"])
-        if kind == "MUTED":
-            return Paragraph(val, ST["muted"])
-        if kind == "BODY":
-            return Paragraph(val, ST["body"])
-        if kind == "SKILL":
-            # Simple background pill — plain 1×1 Table, NO ROUNDEDCORNERS
-            inner_w = col_w - 16   # 8pt padding each side
-            pill = Table([[Paragraph(val, ST["skill"])]], colWidths=[inner_w])
-            pill.setStyle(TableStyle([
-                ("BACKGROUND",    (0,0), (-1,-1), LIGHT),
-                ("TOPPADDING",    (0,0), (-1,-1), 4),
-                ("BOTTOMPADDING", (0,0), (-1,-1), 4),
-                ("LEFTPADDING",   (0,0), (-1,-1), 8),
-                ("RIGHTPADDING",  (0,0), (-1,-1), 8),
-            ]))
-            return pill
-        return Spacer(1, 1)
+# ── Cover Letter Generator ──────────────────────────────────────────────────
+def generate_cover_letter_pdf(data):
+    buf = io.BytesIO()
+    theme = THEMES.get(data.get("theme", "Classic Green"), THEMES["Classic Green"])
+    PRIMARY = _hex(theme["primary"])
+    
+    doc = SimpleDocTemplate(buf, pagesize=A4, leftMargin=LM, rightMargin=RM, topMargin=TM, bottomMargin=BM)
+    story = []
+    
+    name = data.get("name", "Your Name")
+    email = data.get("email", "")
+    phone = data.get("phone", "")
+    
+    # Header
+    story.append(Paragraph(name, _style("Name", font="Helvetica-Bold", size=16, color="#085041", leading=20)))
+    story.append(Paragraph(f"{email} | {phone}" if email and phone else email or phone, 
+                          _style("Contact", size=9, color="#555555", leading=12)))
+    story.append(Spacer(1, 8*mm))
+    
+    # Date
+    story.append(Paragraph(datetime.now().strftime("%B %d, %Y"), 
+                          _style("Date", size=9.5, color="#333333", align=TA_RIGHT, sa=6)))
+    story.append(Spacer(1, 3*mm))
+    
+    # Recipient
+    company = data.get("cover_company", "Company Name")
+    position = data.get("cover_position", "Position")
+    story.append(Paragraph(f"<b>{company}</b>", _style("Recipient", font="Helvetica-Bold", size=10, color="#333333", leading=14)))
+    story.append(Paragraph(f"Re: Application for {position}", 
+                          _style("Subject", size=10, color="#333333", leading=14, sa=6)))
+    story.append(Spacer(1, 3*mm))
+    
+    # Body
+    story.append(Paragraph("Dear Hiring Manager,", _style("Body", size=10, color="#333333", leading=16, sa=4)))
+    
+    opening = f"I am writing to express my strong interest in the {position} position at {company}. " \
+              f"With experience in {', '.join(data.get('skills', ['my field']))}, " \
+              f"I am confident that my skills and qualifications make me an ideal candidate."
+    story.append(Paragraph(opening, _style("Body", size=10, color="#333333", leading=16, sa=6)))
+    
+    if data.get("cover_custom"):
+        story.append(Paragraph(data["cover_custom"], _style("Body", size=10, color="#333333", leading=16, sa=6)))
+    
+    closing = "I would welcome the opportunity to discuss how my experience can contribute to your team. Thank you for your consideration."
+    story.append(Paragraph(closing, _style("Body", size=10, color="#333333", leading=16, sa=6)))
+    
+    story.append(Spacer(1, 8*mm))
+    story.append(Paragraph("Sincerely,", _style("Closing", size=10, color="#333333", leading=16, sa=4)))
+    story.append(Paragraph(name, _style("Name", font="Helvetica-Bold", size=11, color="#085041", leading=16)))
+    
+    doc.build(story)
+    return buf.getvalue()
 
-    left_flows  = [to_flowable(k, v, LEFT_W,  True)  for k, v in left_items]
-    right_flows = [to_flowable(k, v, RIGHT_W, False) for k, v in right_items]
+# ── Proposal Generator ──────────────────────────────────────────────────────
+def generate_proposal_pdf(data):
+    buf = io.BytesIO()
+    theme = THEMES.get(data.get("theme", "Classic Green"), THEMES["Classic Green"])
+    PRIMARY = _hex(theme["primary"])
+    
+    doc = SimpleDocTemplate(buf, pagesize=A4, leftMargin=LM, rightMargin=RM, topMargin=TM, bottomMargin=BM)
+    story = []
+    
+    # Title
+    story.append(Paragraph(data.get("proposal_title", "Project Proposal"), 
+                          _style("Title", font="Helvetica-Bold", size=20, color=PRIMARY, leading=28, align=TA_CENTER)))
+    story.append(Spacer(1, 3*mm))
+    
+    # Meta
+    story.append(Paragraph(f"Prepared for: <b>{data.get('proposal_client', 'Client')}</b>", 
+                          _style("Meta", size=10, color="#333333", leading=16, align=TA_CENTER)))
+    story.append(Paragraph(f"Prepared by: <b>{data.get('name', 'Your Name')}</b>", 
+                          _style("Meta", size=10, color="#333333", leading=16, align=TA_CENTER)))
+    story.append(Paragraph(f"Date: <b>{datetime.now().strftime('%B %d, %Y')}</b>", 
+                          _style("Meta", size=10, color="#333333", leading=16, align=TA_CENTER)))
+    if data.get("proposal_budget"):
+        story.append(Paragraph(f"Budget: <b>{data['proposal_budget']}</b>", 
+                              _style("Meta", size=10, color="#333333", leading=16, align=TA_CENTER)))
+    story.append(Spacer(1, 8*mm))
+    
+    # Summary
+    if data.get("proposal_summary"):
+        story.append(Paragraph("<b>Executive Summary</b>", 
+                              _style("Section", font="Helvetica-Bold", size=12, color=PRIMARY, leading=16, sb=6)))
+        story.append(Paragraph(data["proposal_summary"], 
+                              _style("Body", size=10, color="#333333", leading=16, sa=6)))
+    
+    doc.build(story)
+    return buf.getvalue()
 
-    # Pad to equal length
-    n = max(len(left_flows), len(right_flows), 1)
-    left_flows  += [Spacer(1, 1)] * (n - len(left_flows))
-    right_flows += [Spacer(1, 1)] * (n - len(right_flows))
-
-    # ── Two-column Table (row-per-flowable, no KeepInFrame) ───────────────────
-    rows = [[l, r] for l, r in zip(left_flows, right_flows)]
-
-    body = Table(rows, colWidths=[LEFT_W, RIGHT_W + GAP_W], hAlign="LEFT")
-    body.setStyle(TableStyle([
-        ("VALIGN",          (0,0), (-1,-1), "TOP"),
-        ("TOPPADDING",      (0,0), (-1,-1), 1),
-        ("BOTTOMPADDING",   (0,0), (-1,-1), 1),
-        ("LEFTPADDING",     (0,0), (-1,-1), 2),
-        ("RIGHTPADDING",    (0,0), (-1,-1), 2),
-        ("LEFTPADDING",     (1,0), (1,-1),  10),
-        # Thin vertical rule between columns
-        ("LINEAFTER",       (0,0), (0,-1),  0.5, BORDER),
-    ]))
-    story.append(body)
-
+# ── Experience Letter Generator ─────────────────────────────────────────────
+def generate_experience_letter_pdf(data):
+    buf = io.BytesIO()
+    theme = THEMES.get(data.get("theme", "Classic Green"), THEMES["Classic Green"])
+    PRIMARY = _hex(theme["primary"])
+    
+    doc = SimpleDocTemplate(buf, pagesize=A4, leftMargin=LM, rightMargin=RM, topMargin=TM, bottomMargin=BM)
+    story = []
+    
+    company = data.get("exp_company", "Company Name")
+    story.append(Paragraph(company.upper(), _style("Company", font="Helvetica-Bold", size=18, color=PRIMARY, leading=24, align=TA_CENTER)))
+    story.append(Paragraph("─" * 50, _style("Separator", size=10, color="#cccccc", leading=12, align=TA_CENTER)))
+    story.append(Spacer(1, 8*mm))
+    
+    story.append(Paragraph(f"Date: {datetime.now().strftime('%B %d, %Y')}", 
+                          _style("Date", size=10, color="#333333", leading=14, align=TA_RIGHT, sa=6)))
+    story.append(Spacer(1, 4*mm))
+    
+    story.append(Paragraph("<b>TO WHOM IT MAY CONCERN</b>", 
+                          _style("Subject", font="Helvetica-Bold", size=11, color="#085041", leading=16, align=TA_CENTER, sa=6)))
+    story.append(Spacer(1, 6*mm))
+    
+    employee = data.get("exp_employee", "Employee Name")
+    position = data.get("exp_position", "Position Held")
+    period = data.get("exp_period", "Employment Period")
+    
+    story.append(Paragraph(f"This is to certify that <b>{employee}</b> was employed with us as <b>{position}</b> "
+                          f"from <b>{period}</b>.",
+                          _style("Body", size=10.5, color="#333333", leading=18, sa=8)))
+    
+    if data.get("exp_remarks"):
+        story.append(Paragraph("<b>Performance:</b>", 
+                              _style("Section", font="Helvetica-Bold", size=10.5, color="#085041", leading=16, sb=4)))
+        story.append(Paragraph(data["exp_remarks"], 
+                              _style("Body", size=10, color="#333333", leading=17, sa=8)))
+    
+    story.append(Paragraph("We wish the employee all the best in future endeavors.",
+                          _style("Body", size=10, color="#333333", leading=17, sa=8)))
+    
+    story.append(Spacer(1, 8*mm))
+    story.append(Paragraph("<b>Issued By:</b>", _style("Issuer", font="Helvetica-Bold", size=10, color="#333333", leading=16)))
+    
     doc.build(story)
     return buf.getvalue()
